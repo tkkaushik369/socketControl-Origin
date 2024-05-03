@@ -14,9 +14,9 @@ import http from "http"
 import { Server, Socket } from "socket.io"
 import * as THREE from 'three'
 import * as CANNON from 'cannon-es'
-import { messageData, Player } from "./ts/messageData"
+import { PlayerData, Player } from "./ts/messageData"
 import DemoServer from "./ts/DemoServer"
-import * as Scenario from "./ts/scenerios/Scenario"
+import * as ScenarioImport from "./ts/Scenarios/ScenarioImport"
 
 const port: number = 3000
 const privateHost: boolean = false
@@ -57,21 +57,14 @@ class App {
 		this.currentScenarioIndex = -1
 		this.demo = new DemoServer()
 
-		this.demo.addScenario('box', () => {
-			var scene = Scenario.BoxScenario()
-			this.demo.addScene(scene)
-		})
-
-		this.demo.addScenario('sphere', () => {
-			const scene = Scenario.SphereScenario()
-			this.demo.addScene(scene)
-		})
+		// Loading Scenarios
+		ScenarioImport.loadScenarios(this.demo)
 
 		// Socket
 		this.io.on("connection", (socket: Socket) => {
 			this.OnConnect(socket)
 			socket.on("disconnect", () => this.OnDisConnect(socket))
-			socket.on("update", (message: messageData) => this.OnUpdate(socket, message))
+			socket.on("update", (message: PlayerData) => this.OnUpdate(socket, message))
 			socket.on("changeScenario", (inx: number) => this.OnChangeScenario(inx))
 		})
 		setInterval(this.socketLoop, this.fixedTimeStep * 1000)
@@ -111,9 +104,10 @@ class App {
 		this.io.emit("changeScenario", inx)
 	}
 
-	private OnUpdate(socket: Socket, message: messageData) {
+	private OnUpdate(socket: Socket, message: PlayerData) {
 		this.clients[socket.id].timeStamp = message.timeStamp
 		this.clients[socket.id].ping = message.ping
+		this.clients[socket.id].data = message.data
 	}
 
 	public Start() {
@@ -124,7 +118,7 @@ class App {
 
 	private socketLoop() {
 		let data: {
-			[id: string]: messageData
+			[id: string]: PlayerData
 		} = {}
 		Object.keys(this.demo.allBodies).forEach((p) => {
 			data["world_ent_" + p] = {
@@ -135,6 +129,12 @@ class App {
 						x: this.demo.allBodies[p].position.x,
 						y: this.demo.allBodies[p].position.y,
 						z: this.demo.allBodies[p].position.z,
+					},
+					quaternion: {
+						x: this.demo.allBodies[p].quaternion.x,
+						y: this.demo.allBodies[p].quaternion.y,
+						z: this.demo.allBodies[p].quaternion.z,
+						w: this.demo.allBodies[p].quaternion.w,
 					},
 				},
 				timeStamp: Date.now(),

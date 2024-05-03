@@ -1,19 +1,23 @@
 import * as THREE from 'three'
+import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer';
 import * as CANNON from 'cannon-es'
+import AppClient from '../client'
 import Stats from 'three/examples/jsm/libs/stats.module.js';
 import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
 import * as GameModes from './GameModes';
-// import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { CameraController } from './CameraController';
 import { InputManager } from './InputManager';
-import CannonDebugRenderer from '../utils/cannonDebugRenderer'
+import CannonDebugRenderer from '../../server/ts/utils/cannonDebugRenderer'
+import * as Utility from '../../server/ts/Utils/Utility'
 
 
 export default class DemoClient {
-	private parent: HTMLDivElement
+	private appClient: AppClient
+	private parent: HTMLElement
 	public scene: THREE.Scene
-	// private world: CANNON.World
-	// private cannonDebugRenderer: CannonDebugRenderer
+	private world: CANNON.World
+	private cannonDebugRenderer: CannonDebugRenderer | undefined
+	private renderer2D: CSS2DRenderer
 	private renderer: THREE.WebGLRenderer
 	private ambientLight: THREE.AmbientLight
 	private spotLight: THREE.SpotLight
@@ -32,13 +36,18 @@ export default class DemoClient {
 	public settings: { [id: string]: any }
 	private gui: GUI
 	private scenario: Function[]
-	public allMesh: { [id: string]: THREE.Mesh }
-	// public allBodies: { [id: string]: CANNON.Body }
+	public allMesh: { [id: string]: THREE.Object3D }
+	public allLabels: { [id: string]: CSS2DObject }
+	public allBodies: { [id: string]: CANNON.Body }
 	private scenarioFolder: any
-	public changeSceneCallBack: Function | undefined
 
-	constructor(parent: HTMLDivElement) {
-		this.parent = parent
+	public changeSceneCallBack: Function | undefined
+	public animateCallBack: Function | undefined
+
+	constructor(appClient: AppClient, parent?: HTMLElement) {
+		this.appClient = appClient
+		if (parent !== undefined) this.parent = parent
+		else this.parent = document.body
 
 		// Bind Functions
 		this.animate = this.animate.bind(this)
@@ -47,29 +56,34 @@ export default class DemoClient {
 		// Scenario
 		this.scenario = []
 		this.allMesh = {}
-		// this.allBodies = {}
+		this.allLabels = {}
+		this.allBodies = {}
 
 		// Scene
 		this.scene = new THREE.Scene()
 		this.scene.fog = new THREE.Fog(0x222222, 1000, 2000)
 
 		// World
-		// this.world = new CANNON.World()
-		// this.world.gravity.set(0, -9.8, 0)
-
-		// Debug
-		// this.cannonDebugRenderer = new CannonDebugRenderer(this.scene, this.world)
+		this.world = new CANNON.World()
+		this.world.gravity.set(0, -9.8, 0)
 
 		// Renderer
 		this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
 		this.renderer.setSize(window.innerWidth, window.innerHeight)
 		this.renderer.shadowMap.enabled = true
-		// this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
+		this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
 		this.renderer.setClearColor(this.scene.fog.color, 0.1)
 		this.parent.appendChild(this.renderer.domElement)
 
+		this.renderer2D = new CSS2DRenderer()
+		this.renderer2D.setSize( window.innerWidth, window.innerHeight )
+		this.renderer2D.domElement.style.position = 'absolute'
+		this.renderer2D.domElement.style.top = '0px'
+		this.renderer2D.domElement.style.zIndex = '-1'
+		this.parent.appendChild( this.renderer2D.domElement )
+
 		// Lights
-		this.ambientLight = new THREE.AmbientLight(0xffffff, 0.01)
+		this.ambientLight = new THREE.AmbientLight(0xffffff, 0.1)
 		this.scene.add(this.ambientLight)
 
 		this.spotLight = new THREE.SpotLight(0xffffff, 150, 0, Math.PI / 8, 1)
@@ -84,26 +98,16 @@ export default class DemoClient {
 		this.spotLight.shadow.mapSize.height = 2048
 		this.scene.add(this.spotLight)
 
-		this.directionalLight = new THREE.DirectionalLight(0xffffff, 1.5 /*0.15*/)
-		this.directionalLight.position.set(-30, 40, 30)
+		this.directionalLight = new THREE.DirectionalLight(0xffffff, 2)
+		this.directionalLight.position.set(30, 40, 30)
 		this.directionalLight.target.position.set(0, 0, 0)
 		this.directionalLight.castShadow = true
 		this.scene.add(this.directionalLight)
 
 		// Camera
-		this.camera = new THREE.PerspectiveCamera(24, window.innerWidth / window.innerHeight, 5, 2000)
+		this.camera = new THREE.PerspectiveCamera(24, window.innerWidth / window.innerHeight, 1, 100)
 		this.camera.position.set(0, 20, 30)
 		this.camera.lookAt(0, 0, 0)
-
-		// Orbit controls
-		/* this.controls = new OrbitControls(this.camera, this.renderer.domElement)
-		this.controls.rotateSpeed = 1.0
-		this.controls.zoomSpeed = 1.2
-		this.controls.enableDamping = true
-		this.controls.enablePan = false
-		this.controls.dampingFactor = 0.2
-		this.controls.minDistance = 10
-		this.controls.maxDistance = 500 */
 
 		// Helpers
 		this.helpers = {}
@@ -118,6 +122,7 @@ export default class DemoClient {
 			Pointer_Lock: true,
 			Mouse_Sensitivity: 0.3,
 			Time_Scale: 1,
+			Debug_Physics: false,
 		}
 		
 		// Changing time scale with scroll wheel
@@ -133,17 +138,31 @@ export default class DemoClient {
 		const pointLockFunc = (enabled: boolean) => { this.inputManager.setPointerLock(enabled); }
 		const mouseSensitivityFunc = (value: number) => { this.cameraController.setSensitivity(value, value * 0.8); }
 		const timeScaleFunc = (value: number) => { this.settings.timeScaleTarget = value; }
+		const debugPhysicsFunc = (enabled: boolean) => {
+			if (enabled) { this.cannonDebugRenderer = new CannonDebugRenderer(this.scene, this.world); }
+			else {
+				if(this.cannonDebugRenderer !== undefined) this.cannonDebugRenderer.clearMeshes();
+				this.cannonDebugRenderer = undefined;
+			}
+		}
 
-		this.gui = new GUI()
+		this.gui = new GUI({ width: 140 })
 		
 		// Input Folder
 		let inputFolder = this.gui.addFolder('Input')
 		inputFolder.add(this.settings, 'Pointer_Lock').onChange(pointLockFunc);
-		inputFolder.add(this.settings, 'Mouse_Sensitivity', 0.01, 0.5, 0.01).onChange(mouseSensitivityFunc)
+		inputFolder.add(this.settings, 'Mouse_Sensitivity', 0.01, 0.5, 0.01).onChange(mouseSensitivityFunc).name("Mouse")
+		inputFolder.close()
 
 		// Graphics
-		let graphics_folder = this.gui.addFolder('Rendering');
-		graphics_folder.add(this.settings, 'Time_Scale', 0, 1).listen().onChange(timeScaleFunc);
+		let graphicsFolder = this.gui.addFolder('Rendering');
+		graphicsFolder.add(this.settings, 'Time_Scale', 0, 1).listen().onChange(timeScaleFunc);
+		graphicsFolder.close()
+
+		// Debug
+		let debugFolder = this.gui.addFolder('Debug');
+		debugFolder.add(this.settings, 'Debug_Physics').onChange(debugPhysicsFunc);
+		debugFolder.close()
 		
 		// Scene Picker Folder
 		this.scenarioFolder = this.gui.addFolder('Scenario')
@@ -153,7 +172,8 @@ export default class DemoClient {
 			// run all Functions
 			pointLockFunc(this.settings.Pointer_Lock)
 			mouseSensitivityFunc(this.settings.Mouse_Sensitivity)
-			timeScaleFunc(this.settings.Time_Scale);
+			timeScaleFunc(this.settings.Time_Scale)
+			debugPhysicsFunc(this.settings.Debug_Physics)
 		}
 
 		// Events
@@ -170,16 +190,19 @@ export default class DemoClient {
 
 	public addScene(scene: THREE.Scene) {
 		var listMesh: any[] = []
-		scene.traverse((child: any) => {
+		scene.children.forEach((child: any) => {
 			if (child.isMesh) {
 				listMesh.push(child)
 			}
 		})
 
 		listMesh.forEach((child: any) => {
-			if (child.userData.name !== undefined)
+			if (child.userData.name !== undefined) {
+				if (child.userData.visible === "false")
+					child.visible = false
 				this.addMesh(this.scene, child, child.userData.name)
-			/* let body = this.getBodyFromMesh(child)
+			}
+			let body = Utility.getBodyFromMesh(child)
 			if ((body !== undefined) && (child.userData.name !== undefined)) {
 				this.addBody(this.world, body, child.userData.name)
 				body.position.x = child.position.x
@@ -189,31 +212,45 @@ export default class DemoClient {
 				body.quaternion.y  = child.quaternion.y
 				body.quaternion.z  = child.quaternion.z
 				body.quaternion.w  = child.quaternion.w
-			} */
+			} 
 		})
 	}
 
-	private addMesh(scene: THREE.Scene, mesh: THREE.Mesh, name: string) {
+	public addMesh(scene: THREE.Scene, mesh: THREE.Object3D, name: string) {
 		this.allMesh[name] = mesh
-		scene.add(mesh)
+		this.allMesh[name].castShadow = true
+		this.allMesh[name].receiveShadow = true
+		scene.add(this.allMesh[name])
 	}
 
-	private removeMesh(scene: THREE.Scene, name: string) {
+	public removeMesh(scene: THREE.Scene, name: string) {
 		if (this.allMesh[name] === undefined) return
 		scene.remove(this.allMesh[name])
 		delete this.allMesh[name]
 	}
 
-/* 	private addBody(world: CANNON.World, body: CANNON.Body, name: string) {
+	public addLabel(obj: THREE.Object3D, label: CSS2DObject, name: string) {
+		this.allLabels[name] = label
+		obj.add(this.allLabels[name])
+	}
+
+	public removeLabel(name: string) {
+		if (this.allLabels[name+"_label"] === undefined) return
+		if (this.allMesh[name+"_mesh"] === undefined) return
+		this.allMesh[name+"_mesh"].remove(this.allLabels[name+"_label"])
+		delete this.allLabels[name]
+	}
+
+ 	private addBody(world: CANNON.World, body: CANNON.Body, name: string) {
 		this.allBodies[name] = body
 		world.addBody(body)
-	} */
+	} 
 
-	/* private removeBody(world: CANNON.World, name: string) {
+	private removeBody(world: CANNON.World, name: string) {
 		if (this.allBodies[name] === undefined) return
 		world.removeBody(this.allBodies[name])
 		delete this.allBodies[name]
-	} */
+	} 
 
 
 	public addScenario(title: string, initfunc: Function) {
@@ -224,39 +261,19 @@ export default class DemoClient {
 	}
 
 	public changeScene(inx: number, call: boolean) {
-		this.buildScene(inx)
 		if (call && (this.changeSceneCallBack !== undefined)) this.changeSceneCallBack(inx)
+		else this.buildScene(inx)
 	}
 
 	private buildScene(inx: number) {
 		// Remove all visuals
 		this.removeAllVisuals();
-		// this.removeAllPhysics();
+		this.removeAllPhysics();
 
 		if (inx == -1) return
 		// Run the user defined "build scene" function
 		this.scenario[inx]()
 	}
-
-	/* private getBodyFromMesh(mesh: THREE.Mesh): CANNON.Body | undefined {
-		if (mesh.userData.physics == "box") {
-			let mass = mesh.userData.mass;
-			if (mass === undefined) mass = 0;
-			else mass = Number(mass)
-			const parameter = (mesh.geometry as THREE.BoxGeometry).parameters
-			const shape = new CANNON.Box(new CANNON.Vec3(parameter.width / 2, parameter.height / 2, parameter.depth / 2))
-			const body = new CANNON.Body({ mass: mass, shape: shape })
-			return body
-		} else if (mesh.userData.physics == "sphere") {
-			let mass = mesh.userData.mass;
-			if (mass === undefined) mass = 0;
-			else mass = Number(mass)
-			const parameter = (mesh.geometry as THREE.SphereGeometry).parameters
-			const shape = new CANNON.Sphere(parameter.radius)
-			const body = new CANNON.Body({ mass: mass, shape: shape })
-			return body
-		}
-	} */
 
 	private removeAllVisuals() {
 		Object.keys(this.allMesh).forEach((p) => {
@@ -264,27 +281,55 @@ export default class DemoClient {
 		});
 	}
 
-	/* private removeAllPhysics() {
+	private removeAllPhysics() {
 		Object.keys(this.allBodies).forEach((p) => {
 			this.removeBody(this.world, p)
 		});
-	} */
+	} 
 
 	public meshUpdate(id: string, data: any) {
 		const world_ent = "world_ent_"
+		const mesh_ent = "_mesh"
 		if (id.includes(world_ent)) {
-			console.log(id, JSON.stringify(data))
 			const tid = id
 			let p = tid.replace(world_ent, "")
+
 			if(this.allMesh[p] !== undefined) {
 				this.allMesh[p].position.x = data.position.x
 				this.allMesh[p].position.y = data.position.y
 				this.allMesh[p].position.z = data.position.z
+
+				this.allMesh[p].quaternion.x = data.quaternion.x
+				this.allMesh[p].quaternion.y = data.quaternion.y
+				this.allMesh[p].quaternion.z = data.quaternion.z
+				this.allMesh[p].quaternion.w = data.quaternion.w
 			}
 
-			/* this.allBodies[p].position.x = data.position.x
-			this.allBodies[p].position.y = data.position.y
-			this.allBodies[p].position.z = data.position.z */
+			if(this.allBodies[p] !== undefined) {
+				this.allBodies[p].position.x = data.position.x
+				this.allBodies[p].position.y = data.position.y
+				this.allBodies[p].position.z = data.position.z
+
+				this.allBodies[p].quaternion.x = data.quaternion.x
+				this.allBodies[p].quaternion.y = data.quaternion.y
+				this.allBodies[p].quaternion.z = data.quaternion.z
+				this.allBodies[p].quaternion.w = data.quaternion.w
+			}
+		} else {
+			if(this.allMesh[id+mesh_ent] !== undefined) {
+				if(data.position != undefined) {
+					this.allMesh[id+mesh_ent].position.x = data.position.x
+					this.allMesh[id+mesh_ent].position.y = data.position.y
+					this.allMesh[id+mesh_ent].position.z = data.position.z
+				}
+
+				if(data.quaternion != undefined) {
+					this.allMesh[id+mesh_ent].quaternion.x = data.quaternion.x
+					this.allMesh[id+mesh_ent].quaternion.y = data.quaternion.y
+					this.allMesh[id+mesh_ent].quaternion.z = data.quaternion.z
+					this.allMesh[id+mesh_ent].quaternion.w = data.quaternion.w
+				}
+			}
 		}
 	}
 
@@ -296,27 +341,26 @@ export default class DemoClient {
 
 		this.gameMode.update();
 
-		// this.controls.update()
 		// Lerp parameters
 		this.cameraController.radius = THREE.MathUtils.lerp(this.cameraController.radius, this.cameraDistanceTarget, 0.1);
 
 		// Rotate and position camera
-		this.cameraController.update();
+		this.cameraController.update()
+		if (this.animateCallBack !== undefined) this.animateCallBack()
 		
-		// this.cannonDebugRenderer.update()
+		// Update cannonDebugRenderer
+		if (this.settings.Debug_Physics && (this.cannonDebugRenderer !== undefined)) this.cannonDebugRenderer.update()
 
-		this.renderer.render(this.scene, this.camera);
+		this.renderer.render(this.scene, this.camera)
+		this.renderer2D.render(this.scene, this.camera)
 	}
 
 	// Events
 	private onWindowResize() {
 		(this.camera as THREE.PerspectiveCamera).aspect = window.innerWidth / window.innerHeight;
-		(this.camera as THREE.PerspectiveCamera).updateProjectionMatrix();
-		this.renderer.setSize(window.innerWidth, window.innerHeight);
-	}
-
-	public start() {
-		this.buildScene(0)
+		(this.camera as THREE.PerspectiveCamera).updateProjectionMatrix()
+		this.renderer.setSize(window.innerWidth, window.innerHeight)
+		this.renderer2D.setSize(window.innerWidth, window.innerHeight)
 	}
 }
 

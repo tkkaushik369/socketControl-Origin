@@ -1,11 +1,11 @@
 import * as THREE from 'three'
 import * as CANNON from 'cannon-es'
+import * as Utility from "./Utils/Utility"
 
 export default class DemoServer {
 	public world: CANNON.World
 
 	private settings: { [id: string]: any }
-	public scenarioIndex: number
 	private scenario: Function[]
 	public allBodies: { [id: string]: CANNON.Body }
 
@@ -36,14 +36,14 @@ export default class DemoServer {
 
 	public addScene(scene: THREE.Scene) {
 		var listMesh: any[] = []
-		scene.traverse((child: any) => {
+		scene.children.forEach((child: any) => {
 			if (child.isMesh) {
 				listMesh.push(child)
 			}
 		})
 
 		listMesh.forEach((child: any) => {
-			let body = this.getBodyFromMesh(child)
+			let body = Utility.getBodyFromMesh(child)
 			if ((body !== undefined) && (child.userData.name !== undefined)) {
 				this.addBody(this.world, body, child.userData.name)
 				body.position.x = child.position.x
@@ -79,26 +79,6 @@ export default class DemoServer {
 		if (inx === -1) return
 		// Run the user defined "build scene" function
 		this.scenario[inx]()
-	}
-
-	private getBodyFromMesh(mesh: THREE.Mesh): CANNON.Body | undefined {
-		if (mesh.userData.physics == "box") {
-			let mass = mesh.userData.mass;
-			if (mass === undefined) mass = 0;
-			else mass = Number(mass)
-			const parameter = (mesh.geometry as THREE.BoxGeometry).parameters
-			const shape = new CANNON.Box(new CANNON.Vec3(parameter.width / 2, parameter.height / 2, parameter.depth / 2))
-			const body = new CANNON.Body({ mass: mass, shape: shape })
-			return body
-		} else if (mesh.userData.physics == "sphere") {
-			let mass = mesh.userData.mass;
-			if (mass === undefined) mass = 0;
-			else mass = Number(mass)
-			const parameter = (mesh.geometry as THREE.SphereGeometry).parameters
-			const shape = new CANNON.Sphere(parameter.radius)
-			const body = new CANNON.Body({ mass: mass, shape: shape })
-			return body
-		}
 	}
 
 	private removeAllPhysics() {

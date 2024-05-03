@@ -8,7 +8,7 @@ export class CameraController {
 
 	public radius: number
 	public theta: number
-	private phi: number
+	public phi: number
 
 	public onMouseDownPosition: THREE.Vector2
 	public onMouseDownTheta: number

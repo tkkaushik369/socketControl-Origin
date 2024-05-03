@@ -1,12 +1,13 @@
 :root {
 	--top: 54px;
+	--transparency: 1;
 }
 
 body {
 	overflow: hidden;
 	margin: 0px;
 	color: rgba(200, 200, 200, 0.6);
-	background-color: rgba(1, 1, 1, 1);
+	background-color: rgba(1, 1, 1, var(--transparency));
 }
 
 #pingStats {
@@ -20,4 +21,9 @@ body {
 	border: 1px solid rgba(120, 120, 120, 0.3);
 	box-sizing: border-box;
 	user-select: none;
+}
+
+
+.lil-gui {
+	opacity: 0.8;
 }

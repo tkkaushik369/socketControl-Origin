@@ -1,4 +1,7 @@
-export type messageData = {
+import * as THREE from 'three'
+import * as ScenarioImport from  './Scenarios/ScenarioImport'
+
+export type PlayerData = {
 	id: string,
 	userName: string,
 	data: any,
@@ -9,9 +12,10 @@ export type messageData = {
 export class Player {
 	public id: string
 	public userName: string
-	public data: string
+	public data: any
 	public timeStamp: number
 	public ping: number
+	public mesh: THREE.Object3D
 
 	constructor() {
 		this.id = ""
@@ -19,9 +23,10 @@ export class Player {
 		this.data = ""
 		this.timeStamp = Date.now()
 		this.ping = -1
+		this.mesh = ScenarioImport.CameraScenario()
 	}
 
-	public out(): messageData {
+	public out(): PlayerData {
 		return {
 			id: this.id,
 			userName: this.userName,
