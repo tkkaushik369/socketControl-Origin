@@ -96,9 +96,9 @@ class AppServer {
 			listMesh.forEach((child: any) => {
 				let body = Utility.getBodyFromMesh(child)
 				if ((body !== undefined) && (child.userData.name !== undefined)) {
-					this.worldServer.addBody(this.worldServer.world, body, p+"_player_"+child.userData.name)
+					this.worldServer.addBody(this.worldServer.world, body, p + "_player_" + child.userData.name)
 					body.position.x = child.position.x
-					body.position.y = child.position.y-5
+					body.position.y = child.position.y - 5
 					body.position.z = child.position.z
 					body.quaternion.x = child.quaternion.x
 					body.quaternion.y = child.quaternion.y
@@ -120,7 +120,7 @@ class AppServer {
 		if (this.clients && this.clients[socket.id]) {
 			console.log("deleting " + socket.id);
 			Object.keys(this.worldServer.allBodies).forEach((p) => {
-				if(p.includes(socket.id)) {
+				if (p.includes(socket.id)) {
 					this.worldServer.removeBody(this.worldServer.world, p)
 				}
 			});
@@ -144,13 +144,13 @@ class AppServer {
 
 		{
 			Object.keys(this.worldServer.allBodies).forEach((p) => {
-				if(p.includes(socket.id)) {
-					if(this.clients[socket.id].data.position) {
+				if (p.includes(socket.id)) {
+					if (this.clients[socket.id].data.position) {
 						this.worldServer.allBodies[p].position.x = this.clients[socket.id].data.position.x
 						this.worldServer.allBodies[p].position.y = this.clients[socket.id].data.position.y
 						this.worldServer.allBodies[p].position.z = this.clients[socket.id].data.position.z
 					}
-					if(this.clients[socket.id].data.quaternion) {
+					if (this.clients[socket.id].data.quaternion) {
 						this.worldServer.allBodies[p].quaternion.x = this.clients[socket.id].data.quaternion.x
 						this.worldServer.allBodies[p].quaternion.y = this.clients[socket.id].data.quaternion.y
 						this.worldServer.allBodies[p].quaternion.z = this.clients[socket.id].data.quaternion.z
@@ -172,7 +172,7 @@ class AppServer {
 			[id: string]: PlayerData
 		} = {}
 		Object.keys(this.worldServer.allBodies).forEach((p) => {
-			if(!p.includes("_player_")) {
+			if (!p.includes("_player_")) {
 				data["world_ent_" + p] = {
 					id: "world_ent_" + p,
 					userName: "server",
@@ -193,10 +193,10 @@ class AppServer {
 					ping: -1,
 				}
 			} else {
-				if(this.clients[p.split("_player_")[0]].userName) {
+				if (this.clients[p.split("_player_")[0]].userName) {
 					data[p] = {
 						id: p,
-						userName: this.clients[p.split("_player_")[0]].userName+"_player_"+p.split("_player_")[1],
+						userName: this.clients[p.split("_player_")[0]].userName + "_player_" + p.split("_player_")[1],
 						data: {
 							position: {
 								x: this.worldServer.allBodies[p].position.x,

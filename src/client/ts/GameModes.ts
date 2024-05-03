@@ -109,39 +109,36 @@ export class FreeCameraControls extends GameModeBase {
 			// Shift modifier fix
 			key = key.toLowerCase();
 
-			 if(key == 'f' && value == true) {
+			if (key == 'f' && value == true) {
 				let forward = new THREE.Vector3(0, 0, -5).applyQuaternion(this.worldClient.camera.quaternion);
 				let ball = new WorldObject();
 				ball.setPhysics(new WorldObjectPhysics.Sphere({
 					mass: 1,
 					radius: 0.3,
 					position: new CANNON.Vec3(
-											  this.worldClient.camera.position.x,
-											  this.worldClient.camera.position.y,
-											  this.worldClient.camera.position.z,
-											  ).vadd(new CANNON.Vec3(
-																	 forward.x,
-																	 forward.y,
-																	 forward.z,
-																	 ))
+						this.worldClient.camera.position.x,
+						this.worldClient.camera.position.y,
+						this.worldClient.camera.position.z,
+					).vadd(new CANNON.Vec3(
+						forward.x,
+						forward.y,
+						forward.z,
+					))
 				}));
 				ball.setModelFromPhysicsShape()
 
-				if((ball.model !== undefined) && (ball.physics !== undefined) && (ball.physics.visual !== undefined) && (ball.physics.physical !== undefined)) {
+				if ((ball.model !== undefined) && (ball.physics !== undefined) && (ball.physics.physical !== undefined)) {
 					this.worldClient.scene.add(ball.model)
-					this.worldClient.scene.add(ball.physics.visual)
 					this.worldClient.world.addBody(ball.physics.physical)
 				}
 
 				this.worldClient.allBalls.push(ball)
-				if(this.worldClient.allBalls.length > 10)
-				{
+				if (this.worldClient.allBalls.length > 10) {
 					this.worldClient.scene.remove(this.worldClient.allBalls[0].model)
-					this.worldClient.scene.remove(this.worldClient.allBalls[0].physics.visual)
 					this.worldClient.world.removeBody(this.worldClient.allBalls[0].physics.physical)
 					_.pull(this.worldClient.allBalls, this.worldClient.allBalls[0]);
 				}
-			} 
+			}
 
 			// Turn off free cam
 			if (this.previousGameMode !== undefined && key == 'c' && value == true && event.shiftKey == true) {

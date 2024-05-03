@@ -1,5 +1,4 @@
 import * as THREE from 'three'
-import * as CANNON from 'cannon-es'
 
 export class WorldObject extends THREE.Object3D {
 
@@ -17,12 +16,12 @@ export class WorldObject extends THREE.Object3D {
 	}
 
 	update(timeStamp: number) {
-		if((this.physics !== undefined) && (this.physics.visual !== undefined)) {
-			this.physics.visual.position.copy(this.position)
-			this.physics.visual.quaternion.copy(this.quaternion)
+		if ((this.physics !== undefined) && (this.physics.physical !== undefined)) {
+			this.position.copy(this.physics.physical.position)
+			this.quaternion.copy(this.physics.physical.quaternion)
 		}
 
-		if(this.model !== undefined) {
+		if (this.model !== undefined) {
 			this.model.position.copy(this.position)
 			this.model.quaternion.copy(this.quaternion)
 		}
@@ -33,7 +32,7 @@ export class WorldObject extends THREE.Object3D {
 	}
 
 	setModelFromPhysicsShape() {
-		if(this.physics !== undefined) this.model = this.physics.getVisualModel({ visible: true, wireframe: false })
+		if (this.physics !== undefined) this.model = this.physics.getVisualModel({ visible: true, wireframe: false })
 	}
 
 	setPhysics(physics: any = undefined) {

@@ -83,7 +83,7 @@ export default class WorldServer {
 
 	private removeAllPhysics() {
 		Object.keys(this.allBodies).forEach((p) => {
-			if(!p.includes("_player_")) this.removeBody(this.world, p)
+			if (!p.includes("_player_")) this.removeBody(this.world, p)
 		});
 	}
 

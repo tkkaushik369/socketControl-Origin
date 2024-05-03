@@ -7,7 +7,6 @@ export class Sphere {
 
 	public options: { [id: string]: any }
 	public physical: CANNON.Body
-	public visual: THREE.Mesh
 
 	constructor(options: { [id: string]: any }) {
 		let defaults = {
@@ -33,7 +32,6 @@ export class Sphere {
 		physSphere.material = mat
 
 		this.physical = physSphere;
-		this.visual = this.getVisualModel({ visible: false, wireframe: true });
 	}
 
 	private getVisualModel(options: { [id: string]: any }) {
@@ -61,10 +59,10 @@ export class Box {
 
 	public options: { [id: string]: any }
 	public physical: CANNON.Body
-	public visual: THREE.Mesh
 
 	constructor(options: {
-		[id: string]: any }) {
+		[id: string]: any
+	}) {
 		let defaults = {
 			mass: 0,
 			position: new CANNON.Vec3(),
@@ -90,7 +88,6 @@ export class Box {
 		physBox.material = mat
 
 		this.physical = physBox
-		this.visual = this.getVisualModel({ visible: false, wireframe: true })
 	}
 
 	private getVisualModel(options: { [id: string]: any }) {
@@ -116,9 +113,9 @@ export class Box {
 
 export class Capsule {
 	public options: {
-		[id: string]: any }
+		[id: string]: any
+	}
 	public physical: CANNON.Body
-	public visual: THREE.Mesh
 
 	constructor(options: { [id: string]: any }) {
 		let defaults = {
@@ -149,7 +146,6 @@ export class Capsule {
 		physicalCapsule.addShape(sphereShape, new CANNON.Vec3(0, -options.height / 2, 0))
 
 		this.physical = physicalCapsule
-		this.visual = this.getVisualModel({ visible: false, wireframe: true })
 	}
 
 	getVisualModel(options: { [id: string]: any }) {
@@ -176,7 +172,6 @@ export class Convex {
 	public options: { [id: string]: any }
 	public mesh: THREE.Mesh
 	public physical: CANNON.Body
-	public visual: THREE.Mesh
 
 	constructor(mesh: THREE.Mesh, options: { [id: string]: any }) {
 		this.mesh = mesh.clone()
@@ -203,7 +198,6 @@ export class Convex {
 		physBox.material = mat
 
 		this.physical = physBox
-		this.visual = this.getVisualModel({ visible: false, wireframe: true })
 	}
 
 	getVisualModel(options: { [id: string]: any }) {
@@ -231,7 +225,6 @@ export class TriMesh {
 	public options: { [id: string]: any }
 	public mesh: THREE.Mesh
 	public physical: CANNON.Body
-	public visual: THREE.Mesh
 
 	constructor(mesh: THREE.Mesh, options: { [id: string]: any }) {
 		this.mesh = mesh.clone()
@@ -259,10 +252,9 @@ export class TriMesh {
 		physBox.material = mat
 
 		this.physical = physBox
-		this.visual = this.getVisualModel({ visible: false, wireframe: true })
 	}
 
-	getVisualModel(options: { [id: string]: any }){
+	getVisualModel(options: { [id: string]: any }) {
 		let defaults = {
 			visible: true,
 			wireframe: true

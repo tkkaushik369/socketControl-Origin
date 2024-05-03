@@ -76,17 +76,17 @@ export default class AppClient {
 		console.log("removeClient: ", id);
 		if (this.clients[id] !== undefined) {
 			Object.keys(this.worldClient.allLabels).forEach((p) => {
-				if(p.includes(id)) {
+				if (p.includes(id)) {
 					this.worldClient.removeLabel(p)
 				}
 			});
 			Object.keys(this.worldClient.allMeshs).forEach((p) => {
-				if(p.includes(id)) {
+				if (p.includes(id)) {
 					this.worldClient.removeMesh(this.worldClient.scene, p)
 				}
 			});
 			Object.keys(this.worldClient.allBodies).forEach((p) => {
-				if(p.includes(id)) {
+				if (p.includes(id)) {
 					this.worldClient.removeBody(this.worldClient.world, p)
 				}
 			});
@@ -128,11 +128,11 @@ export default class AppClient {
 				if ((p.includes("_player_")) && (this.worldClient.allMeshs[p] === undefined)) {
 					let mesh = this.clients[p].mesh
 					let label = this.makeLabel(players[p].userName)
-  					const sprite = this.makeTextSprite(players[p].userName)
-  					mesh.add(sprite)
+					const sprite = this.makeTextSprite(players[p].userName)
+					mesh.add(sprite)
 					this.worldClient.addMesh(this.worldClient.scene, mesh, p)
 					this.worldClient.addLabel(this.clients[p].mesh, label, p)
-					if(p.includes(this.player.id)) {
+					if (p.includes(this.player.id)) {
 						mesh.visible = false
 						label.visible = false
 					}
@@ -148,7 +148,7 @@ export default class AppClient {
 						listMesh.forEach((child: any) => {
 							let body = Utility.getBodyFromMesh(child)
 							if ((body !== undefined) && (child.userData.name !== undefined)) {
-								this.worldClient.addBody(this.worldClient.world, body, p+"_player_"+child.userData.name)
+								this.worldClient.addBody(this.worldClient.world, body, p + "_player_" + child.userData.name)
 								body.position.x = child.position.x
 								body.position.y = child.position.y
 								body.position.z = child.position.z
@@ -165,39 +165,39 @@ export default class AppClient {
 		})
 	}
 
-	makeTextSprite( message: string, parameters: { [id: string]: any } = {} ) {
-		if ( parameters === undefined ) parameters = {};
+	makeTextSprite(message: string, parameters: { [id: string]: any } = {}) {
+		if (parameters === undefined) parameters = {};
 		var fontface = parameters.hasOwnProperty("fontface") ? parameters["fontface"] : "Arial";
 		var fontsize = parameters.hasOwnProperty("fontsize") ? parameters["fontsize"] : 18;
 		var borderThickness = parameters.hasOwnProperty("borderThickness") ? parameters["borderThickness"] : 4;
-		var borderColor = parameters.hasOwnProperty("borderColor") ?parameters["borderColor"] : { r:0, g:0, b:0, a:1.0 };
-		var backgroundColor = parameters.hasOwnProperty("backgroundColor") ?parameters["backgroundColor"] : { r:255, g:255, b:255, a:1.0 };
-		var textColor = parameters.hasOwnProperty("textColor") ?parameters["textColor"] : { r:0, g:0, b:0, a:1.0 };
+		var borderColor = parameters.hasOwnProperty("borderColor") ? parameters["borderColor"] : { r: 0, g: 0, b: 0, a: 1.0 };
+		var backgroundColor = parameters.hasOwnProperty("backgroundColor") ? parameters["backgroundColor"] : { r: 255, g: 255, b: 255, a: 1.0 };
+		var textColor = parameters.hasOwnProperty("textColor") ? parameters["textColor"] : { r: 0, g: 0, b: 0, a: 1.0 };
 
 		var canvas: HTMLCanvasElement = document.createElement('canvas');
-		var context:any = canvas.getContext('2d');
+		var context: any = canvas.getContext('2d');
 		context.font = "Bold " + fontsize + "px " + fontface;
-		var metrics = context.measureText( message );
+		var metrics = context.measureText(message);
 		var textWidth = metrics.width;
 
-		context.fillStyle   = "rgba(" + backgroundColor.r + "," + backgroundColor.g + "," + backgroundColor.b + "," + backgroundColor.a + ")";
+		context.fillStyle = "rgba(" + backgroundColor.r + "," + backgroundColor.g + "," + backgroundColor.b + "," + backgroundColor.a + ")";
 		context.strokeStyle = "rgba(" + borderColor.r + "," + borderColor.g + "," + borderColor.b + "," + borderColor.a + ")";
 
 		context.lineWidth = borderThickness;
-		context.rect(borderThickness/2, borderThickness/2, (textWidth + borderThickness) * 1.1, fontsize * 1.4 + borderThickness);
+		context.rect(borderThickness / 2, borderThickness / 2, (textWidth + borderThickness) * 1.1, fontsize * 1.4 + borderThickness);
 
 
-		context.fillStyle = "rgba("+textColor.r+", "+textColor.g+", "+textColor.b+", 1.0)";
-		context.fillText( message, borderThickness, fontsize + borderThickness);
+		context.fillStyle = "rgba(" + textColor.r + ", " + textColor.g + ", " + textColor.b + ", 1.0)";
+		context.fillText(message, borderThickness, fontsize + borderThickness);
 
-		var texture = new THREE.Texture(canvas) 
+		var texture = new THREE.Texture(canvas)
 		texture.needsUpdate = true;
 
-		var spriteMaterial = new THREE.SpriteMaterial( { map: texture, /*useScreenCoordinates: false*/ } );
-		var sprite = new THREE.Sprite( spriteMaterial );
+		var spriteMaterial = new THREE.SpriteMaterial({ map: texture, /*useScreenCoordinates: false*/ });
+		var sprite = new THREE.Sprite(spriteMaterial);
 		sprite.scale.set(0.5 * fontsize, 0.25 * fontsize, 0.75 * fontsize);
-		return sprite;  
-    }
+		return sprite;
+	}
 
 	private makeLabel(name: string) {
 		let labelDiv = document.createElement('div')

@@ -115,18 +115,18 @@ export default class WorldClient {
 
 		// Helpers
 		this.helpers = {}
-		
+
 		this.helpers['axesHelper'] = new THREE.AxesHelper(5)
-		this.scene.add( this.helpers['axesHelper'] )
+		this.scene.add(this.helpers['axesHelper'])
 
-		this.helpers['gridHelper'] = new THREE.GridHelper( 10, 10 )
-		this.scene.add( this.helpers['gridHelper'] )
+		this.helpers['gridHelper'] = new THREE.GridHelper(10, 10)
+		this.scene.add(this.helpers['gridHelper'])
 
-		this.helpers['spotLight'] = new THREE.SpotLightHelper( this.spotLight )
-		this.scene.add( this.helpers['spotLight'] )
+		this.helpers['spotLight'] = new THREE.SpotLightHelper(this.spotLight)
+		this.scene.add(this.helpers['spotLight'])
 
-		this.helpers['directionalLight'] = new THREE.DirectionalLightHelper( this.directionalLight, 1 )
-		this.scene.add( this.helpers['directionalLight'] )
+		this.helpers['directionalLight'] = new THREE.DirectionalLightHelper(this.directionalLight, 1)
+		this.scene.add(this.helpers['directionalLight'])
 
 		this.clock = new THREE.Clock();
 		this.renderDelta = 0;
@@ -136,7 +136,7 @@ export default class WorldClient {
 			PointerLock: true,
 			MouseSensitivity: 0.2,
 			TimeScale: 1,
-			DebugPhysics: false,
+			DebugPhysics: true,
 		}
 
 		// Changing time scale with scroll wheel
@@ -294,13 +294,13 @@ export default class WorldClient {
 
 	private removeAllVisuals() {
 		Object.keys(this.allMeshs).forEach((p) => {
-			if(!p.includes("_player_")) this.removeMesh(this.scene, p)
+			if (!p.includes("_player_")) this.removeMesh(this.scene, p)
 		});
 	}
 
 	private removeAllPhysics() {
 		Object.keys(this.allBodies).forEach((p) => {
-			if(!p.includes("_player_")) this.removeBody(this.world, p)
+			if (!p.includes("_player_")) this.removeBody(this.world, p)
 		});
 	}
 
@@ -347,7 +347,7 @@ export default class WorldClient {
 				}
 			}
 			Object.keys(this.allBodies).forEach((p) => {
-				if(p.includes(id) && id.includes("_player_")) {
+				if (p.includes(id) && id.includes("_player_")) {
 					if (data.position !== undefined) {
 						this.allBodies[p].position.x = data.position.x
 						this.allBodies[p].position.y = data.position.y

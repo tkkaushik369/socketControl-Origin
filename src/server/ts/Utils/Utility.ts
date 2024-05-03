@@ -35,11 +35,13 @@ export function getBodyFromMesh(mesh: THREE.Mesh): CANNON.Body | undefined {
 }
 
 export function setDefaults(options: {
-	[id: string]: any } = {}, defaults: {
-	[id: string]: any } = {}) {
+	[id: string]: any
+} = {}, defaults: {
+	[id: string]: any
+} = {}) {
 	return _.defaults({}, _.clone(options), defaults);
 }
 
 export function createCapsuleGeometry(radius = 1, height = 2, N = 32) {
-	return new THREE.CapsuleGeometry(radius, height, N/2, N)
+	return new THREE.CapsuleGeometry(radius, height, N / 2, N)
 }
