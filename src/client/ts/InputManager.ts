@@ -11,7 +11,7 @@ export class InputManager {
 	public boundOnMouseMove: any
 	public boundOnMouseUp: any
 	public boundOnMouseWheelMove: any
-	
+
 	public boundOnPointerlockChange: any
 	public boundOnPointerlockError: any
 
@@ -66,7 +66,7 @@ export class InputManager {
 			this.domElement.removeEventListener("mouseup", this.boundOnMouseUp, false);
 			this.isLocked = false;
 		}
-	} 
+	}
 
 	private onPointerlockError(event: MouseEvent) {
 		console.error("PointerLockControls: Unable to use Pointer Lock API");
@@ -83,14 +83,14 @@ export class InputManager {
 
 		if (this.demo.gameMode !== undefined) {
 			this.demo.gameMode.handleAction(event, 'mouse' + event.button, true);
-		} 
+		}
 	}
 
 	public onMouseMove(event: MouseEvent) {
 		if (this.demo.gameMode !== undefined) {
 			this.demo.gameMode.handleMouseMove(event, event.movementX, event.movementY);
 		}
-	} 
+	}
 
 	public onMouseUp(event: MouseEvent) {
 		if (!this.pointerLock) {
@@ -101,23 +101,23 @@ export class InputManager {
 		if (this.demo.gameMode !== undefined) {
 			this.demo.gameMode.handleAction(event, 'mouse' + event.button, false);
 		}
-	} 
+	}
 
 	public onKeyDown(event: KeyboardEvent) {
 		if (this.demo.gameMode !== undefined) {
 			this.demo.gameMode.handleAction(event, event.key, true);
 		}
-	} 
+	}
 
 	public onKeyUp(event: KeyboardEvent) {
 		if (this.demo.gameMode !== undefined) {
 			this.demo.gameMode.handleAction(event, event.key, false);
 		}
-	} 
+	}
 
 	public onMouseWheelMove(event: WheelEvent) {
 		if (this.demo.gameMode !== undefined) {
 			this.demo.gameMode.handleScroll(event, event.deltaY);
 		}
-	} 
+	}
 }

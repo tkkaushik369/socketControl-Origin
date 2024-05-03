@@ -4,12 +4,11 @@ import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer'
 import { io } from "socket.io-client"
 import { PlayerData, Player } from "../server/ts/messageData"
 import DemoClient from "./ts/DemoClient"
-import * as ScenarioImport from  '../server/ts/Scenarios/ScenarioImport'
+import * as ScenarioImport from '../server/ts/Scenarios/ScenarioImport'
 
-if(navigator.userAgent.includes("QtWebEngine")) {
-	// var rootStyle = getComputedStyle(document.body)
-	// console.log( rootStyle.getPropertyValue('--transparency') )
-	document.documentElement.style.setProperty('--transparency', '0.01');
+if (navigator.userAgent.includes("QtWebEngine")) {
+	document.body.classList.add("bodyTransparent");
+	console.log("transparent")
 }
 
 const pingStats = document.getElementById("pingStats") as HTMLDivElement
@@ -74,8 +73,9 @@ export default class AppClient {
 
 	private OnRemoveClient(id: string) {
 		console.log("removeClient: ", id);
-		if(this.clients[id] !== undefined) {
-			this.demo.removeMesh(this.demo.scene, id+"_mesh")
+		if (this.clients[id] !== undefined) {
+			this.demo.removeLabel(id)
+			this.demo.removeMesh(this.demo.scene, id)
 			delete this.clients[id];
 		}
 	}
@@ -98,7 +98,7 @@ export default class AppClient {
 	private OnPlayers(players: { [is: string]: PlayerData }) {
 		pingStats.innerHTML = "";
 		Object.keys(players).forEach((p) => {
-			if(!p.includes("world_ent_")) {
+			if (!p.includes("world_ent_")) {
 				pingStats.innerHTML += (players[p].userName != "server") ? players[p].userName : players[p].id
 				pingStats.innerHTML += ": "
 				pingStats.innerHTML += (players[p].userName != "server") ? players[p].ping : (Date.now() - players[p].timeStamp)
@@ -107,12 +107,13 @@ export default class AppClient {
 				pingStats.innerHTML += "<br>";
 			}
 
-			if((p !== this.player.id)&&(this.clients[p] === undefined)) {
+			if ((p !== this.player.id) && (this.clients[p] === undefined) && (players[p].userName !== "")) {
 				this.clients[p] = new Player()
 			}
-			if(this.clients[p] !== undefined) {
-				if((!p.includes("world_ent_")) && (this.demo.allMesh[p+"_mesh"] === undefined)){
-					this.demo.addMesh(this.demo.scene, this.clients[p].mesh, p+"_mesh")
+			if (this.clients[p] !== undefined) {
+				if ((!p.includes("world_ent_")) && (this.demo.allMesh[p] === undefined)) {
+					this.demo.addMesh(this.demo.scene, this.clients[p].mesh, p)
+					this.demo.addLabel(this.clients[p].mesh, this.makeLabel(players[p].userName), p)
 				}
 			}
 			this.demo.meshUpdate(p, players[p].data)
@@ -120,14 +121,13 @@ export default class AppClient {
 	}
 
 	private makeLabel(name: string) {
-		let labelDiv = document.createElement( 'div' )
-		labelDiv.className = 'label'
+		let labelDiv = document.createElement('div')
+		labelDiv.className = 'playerLabel'
 		labelDiv.textContent = name
-		labelDiv.style.backgroundColor = 'gray'
-		let label = new CSS2DObject( labelDiv )
-		label.position.set( 0, 0.5, 0 )
-		label.center.set( 0, 1 )
-		label.layers.set( 0 )
+		let label = new CSS2DObject(labelDiv)
+		label.position.set(0, 1, 0.5)
+		label.layers.set(0)
+		console.log("lab")
 		return label
 	}
 

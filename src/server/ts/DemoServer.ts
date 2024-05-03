@@ -49,10 +49,10 @@ export default class DemoServer {
 				body.position.x = child.position.x
 				body.position.y = child.position.y
 				body.position.z = child.position.z
-				body.quaternion.x  = child.quaternion.x
-				body.quaternion.y  = child.quaternion.y
-				body.quaternion.z  = child.quaternion.z
-				body.quaternion.w  = child.quaternion.w
+				body.quaternion.x = child.quaternion.x
+				body.quaternion.y = child.quaternion.y
+				body.quaternion.z = child.quaternion.z
+				body.quaternion.w = child.quaternion.w
 			}
 		})
 	}

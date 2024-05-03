@@ -1,13 +1,16 @@
 :root {
 	--top: 54px;
-	--transparency: 1;
 }
 
 body {
 	overflow: hidden;
 	margin: 0px;
 	color: rgba(200, 200, 200, 0.6);
-	background-color: rgba(1, 1, 1, var(--transparency));
+	background-color: rgba(1, 1, 1, 1);
+}
+
+.bodyTransparent {
+	background-color: rgba(1, 1, 1, 0.01);
 }
 
 #pingStats {
@@ -26,4 +29,11 @@ body {
 
 .lil-gui {
 	opacity: 0.8;
+}
+
+.playerLabel {
+	padding: 4px;
+	border: 1px solid rgba(120, 120, 120, 0.8);
+	box-sizing: border-box;
+	background-color: rgba(120, 120, 120, 0.3);
 }

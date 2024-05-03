@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import * as ScenarioImport from  './Scenarios/ScenarioImport'
+import * as ScenarioImport from './Scenarios/ScenarioImport'
 
 export type PlayerData = {
 	id: string,
