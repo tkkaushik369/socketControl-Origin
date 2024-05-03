@@ -136,7 +136,7 @@ export default class WorldClient {
 			PointerLock: true,
 			MouseSensitivity: 0.2,
 			TimeScale: 1,
-			DebugPhysics: true,
+			DebugPhysics: false,
 		}
 
 		// Changing time scale with scroll wheel
