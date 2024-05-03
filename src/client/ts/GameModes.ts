@@ -110,11 +110,11 @@ export class FreeCameraControls extends GameModeBase {
 			key = key.toLowerCase();
 
 			if (key == 'f' && value == true) {
-				let forward = new THREE.Vector3(0, 0, -5).applyQuaternion(this.worldClient.camera.quaternion);
+				let forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.worldClient.camera.quaternion);
 				let ball = new WorldObject();
 				ball.setPhysics(new WorldObjectPhysics.Sphere({
-					mass: 1,
-					radius: 0.3,
+					mass: 0.08,
+					radius: 0.03,
 					position: new CANNON.Vec3(
 						this.worldClient.camera.position.x,
 						this.worldClient.camera.position.y,
@@ -130,6 +130,17 @@ export class FreeCameraControls extends GameModeBase {
 				if ((ball.model !== undefined) && (ball.physics !== undefined) && (ball.physics.physical !== undefined)) {
 					this.worldClient.scene.add(ball.model)
 					this.worldClient.world.addBody(ball.physics.physical)
+
+					const strength = 300
+					const dt = 1.0/60.0
+
+					const vector = new THREE.Vector3(0, 0, 1)
+					vector.unproject(this.worldClient.camera)
+					const ray = new THREE.Ray(forward, vector.sub(forward).normalize())
+					ray.direction
+
+					const impulse = new CANNON.Vec3(ray.direction.x*strength, ray.direction.y*strength, ray.direction.z*strength)
+					ball.physics.physical.applyForce(impulse)
 				}
 
 				this.worldClient.allBalls.push(ball)
