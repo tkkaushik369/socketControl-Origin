@@ -1,24 +1,28 @@
 import * as THREE from 'three'
-import DemoClient from "./DemoClient"
-import * as Controls from './Controls';
+import * as CANNON from 'cannon-es'
+import WorldClient from './WorldClient'
+import * as Controls from './Controls'
+import * as _ from 'lodash'
+import { WorldObject } from '../../server/ts/WorldObjects/WorldObject'
+import * as WorldObjectPhysics from '../../server/ts/WorldObjects/WorldObjectPhysics'
 
 export class GameModeBase {
-	public demo: DemoClient | undefined
+	public worldClient: WorldClient | undefined
 	public keymap: { [id: string]: any } = {}
 
 	init() { }
 	update() { }
 
 	handleAction(event: any, key: any, value: any) {
-		if (this.demo != undefined) {
+		if (this.worldClient != undefined) {
 			key = key.toLowerCase();
 
 			if (key == 't' && value == true) {
-				if (this.demo.timeScaleTarget < 0.5) {
-					this.demo.timeScaleTarget = 1;
+				if (this.worldClient.timeScaleTarget < 0.5) {
+					this.worldClient.timeScaleTarget = 1;
 				}
 				else {
-					this.demo.timeScaleTarget = 0.3;
+					this.worldClient.timeScaleTarget = 0.3;
 				}
 			}
 		}
@@ -28,26 +32,26 @@ export class GameModeBase {
 	handleMouseMove(event: any, deltaX: any, deltaY: any) { }
 
 	checkIfWorldIsSet() {
-		if (this.demo === undefined) {
+		if (this.worldClient === undefined) {
 			console.error('Calling gameMode init() without having specified gameMode\'s world first: ' + this);
 		}
 	}
 
 	scrollTheTimeScale(scrollAmount: number) {
-		if (this.demo != undefined) {
+		if (this.worldClient != undefined) {
 			// Changing time scale with scroll wheel
 			const timeScaleBottomLimit = 0.003;
 			const timeScaleChangeSpeed = 1.3;
 
 			if (scrollAmount > 0) {
-				this.demo.timeScaleTarget /= timeScaleChangeSpeed;
-				if (this.demo.timeScaleTarget < timeScaleBottomLimit) this.demo.timeScaleTarget = 0;
+				this.worldClient.timeScaleTarget /= timeScaleChangeSpeed;
+				if (this.worldClient.timeScaleTarget < timeScaleBottomLimit) this.worldClient.timeScaleTarget = 0;
 			}
 			else {
-				this.demo.timeScaleTarget *= timeScaleChangeSpeed;
-				if (this.demo.timeScaleTarget < timeScaleBottomLimit) this.demo.timeScaleTarget = timeScaleBottomLimit;
-				this.demo.timeScaleTarget = Math.min(this.demo.timeScaleTarget, 1);
-				if (this.demo.settings.Time_Scale > 0.9) this.demo.settings.Time_Scale *= timeScaleChangeSpeed;
+				this.worldClient.timeScaleTarget *= timeScaleChangeSpeed;
+				if (this.worldClient.timeScaleTarget < timeScaleBottomLimit) this.worldClient.timeScaleTarget = timeScaleBottomLimit;
+				this.worldClient.timeScaleTarget = Math.min(this.worldClient.timeScaleTarget, 1);
+				if (this.worldClient.settings.TimeScale > 0.9) this.worldClient.settings.TimeScale *= timeScaleChangeSpeed;
 			}
 		}
 	}
@@ -91,53 +95,58 @@ export class FreeCameraControls extends GameModeBase {
 
 	init() {
 		this.checkIfWorldIsSet();
-		if (this.demo != undefined) {
-			this.demo.cameraController.target.copy(this.demo.camera.position);
-			this.demo.cameraController.setRadius(0);
-			this.demo.cameraDistanceTarget = 0.001;
-			this.demo.directionalLight.target = this.demo.camera;
+		if (this.worldClient != undefined) {
+			this.worldClient.cameraController.target.copy(this.worldClient.camera.position);
+			this.worldClient.cameraController.setRadius(0);
+			this.worldClient.cameraDistanceTarget = 0.001;
+			this.worldClient.directionalLight.target = this.worldClient.camera;
 		}
 	}
 
 	handleAction(event: any, key: any, value: any) {
 		super.handleAction(event, key, value);
-		if (this.demo != undefined) {
+		if (this.worldClient != undefined) {
 			// Shift modifier fix
 			key = key.toLowerCase();
 
-			/* if(key == 'f' && value == true) 
-			{
-				let forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.demo.camera.quaternion);
-				let ball = new Object();
-				ball.setPhysics(new ObjectPhysics.Sphere({
+			 if(key == 'f' && value == true) {
+				let forward = new THREE.Vector3(0, 0, -5).applyQuaternion(this.worldClient.camera.quaternion);
+				let ball = new WorldObject();
+				ball.setPhysics(new WorldObjectPhysics.Sphere({
 					mass: 1,
 					radius: 0.3,
 					position: new CANNON.Vec3(
-											  this.world.camera.position.x,
-											  this.world.camera.position.y,
-											  this.world.camera.position.z,
+											  this.worldClient.camera.position.x,
+											  this.worldClient.camera.position.y,
+											  this.worldClient.camera.position.z,
 											  ).vadd(new CANNON.Vec3(
 																	 forward.x,
 																	 forward.y,
 																	 forward.z,
 																	 ))
 				}));
-				ball.setModelFromPhysicsShape();
-				this.world.add(ball);
+				ball.setModelFromPhysicsShape()
 
-				this.world.balls.push(ball);
-
-				if(this.world.balls.length > 10)
-				{
-					this.world.remove(this.world.balls[0]);
-					_.pull(this.world.balls, this.world.balls[0]);
+				if((ball.model !== undefined) && (ball.physics !== undefined) && (ball.physics.visual !== undefined) && (ball.physics.physical !== undefined)) {
+					this.worldClient.scene.add(ball.model)
+					this.worldClient.scene.add(ball.physics.visual)
+					this.worldClient.world.addBody(ball.physics.physical)
 				}
-			} */
+
+				this.worldClient.allBalls.push(ball)
+				if(this.worldClient.allBalls.length > 10)
+				{
+					this.worldClient.scene.remove(this.worldClient.allBalls[0].model)
+					this.worldClient.scene.remove(this.worldClient.allBalls[0].physics.visual)
+					this.worldClient.world.removeBody(this.worldClient.allBalls[0].physics.physical)
+					_.pull(this.worldClient.allBalls, this.worldClient.allBalls[0]);
+				}
+			} 
 
 			// Turn off free cam
 			if (this.previousGameMode !== undefined && key == 'c' && value == true && event.shiftKey == true) {
-				this.demo.gameMode = this.previousGameMode;
-				this.demo.gameMode.init();
+				this.worldClient.gameMode = this.previousGameMode;
+				this.worldClient.gameMode.init();
 			}
 			// Is key bound to action
 			else if (key in this.keymap) {
@@ -154,16 +163,16 @@ export class FreeCameraControls extends GameModeBase {
 	}
 
 	handleMouseMove(event: MouseEvent, deltaX: number, deltaY: number) {
-		if (this.demo != undefined) this.demo.cameraController.move(deltaX, deltaY);
+		if (this.worldClient != undefined) this.worldClient.cameraController.move(deltaX, deltaY);
 	}
 
 	update() {
-		if (this.demo != undefined) {
+		if (this.worldClient != undefined) {
 			// Make light follow camera (for shadows)
-			/* this.demo.directionalLight.position.set(
-				this.demo.camera.position.x + this.demo.sun.x * 15,
-				this.demo.camera.position.y + this.demo.sun.y * 15,
-				this.demo.camera.position.z + this.demo.sun.z * 15
+			/* this.worldClient.directionalLight.position.set(
+				this.worldClient.camera.position.x + this.worldClient.sun.x * 15,
+				this.worldClient.camera.position.y + this.worldClient.sun.y * 15,
+				this.worldClient.camera.position.z + this.worldClient.sun.z * 15
 			); */
 
 			// Lerp all controls
@@ -176,12 +185,12 @@ export class FreeCameraControls extends GameModeBase {
 			let speed = this.movementSpeed * (this.controls.fast.value ? 5 : 1);
 
 			let up = new THREE.Vector3(0, 1, 0);
-			let forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.demo.camera.quaternion);
-			let right = new THREE.Vector3(1, 0, 0).applyQuaternion(this.demo.camera.quaternion);
+			let forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.worldClient.camera.quaternion);
+			let right = new THREE.Vector3(1, 0, 0).applyQuaternion(this.worldClient.camera.quaternion);
 
-			this.demo.cameraController.target.add(forward.multiplyScalar(speed * (this.controls.forward.floatValue - this.controls.back.floatValue)));
-			this.demo.cameraController.target.add(right.multiplyScalar(speed * (this.controls.right.floatValue - this.controls.left.floatValue)));
-			this.demo.cameraController.target.add(up.multiplyScalar(speed * (this.controls.up.floatValue - this.controls.down.floatValue)));
+			this.worldClient.cameraController.target.add(forward.multiplyScalar(speed * (this.controls.forward.floatValue - this.controls.back.floatValue)));
+			this.worldClient.cameraController.target.add(right.multiplyScalar(speed * (this.controls.right.floatValue - this.controls.left.floatValue)));
+			this.worldClient.cameraController.target.add(up.multiplyScalar(speed * (this.controls.up.floatValue - this.controls.down.floatValue)));
 		}
 	}
 }

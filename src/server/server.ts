@@ -14,14 +14,15 @@ import http from "http"
 import { Server, Socket } from "socket.io"
 import * as THREE from 'three'
 import * as CANNON from 'cannon-es'
-import { PlayerData, Player } from "./ts/messageData"
-import DemoServer from "./ts/DemoServer"
+import { PlayerData, Player } from "./ts/PlayerData"
+import WorldServer from "./ts/WorldServer"
 import * as ScenarioImport from "./ts/Scenarios/ScenarioImport"
+import * as Utility from './ts/Utils/Utility'
 
 const port: number = 3000
 const privateHost: boolean = false
 
-class App {
+class AppServer {
 	private server: http.Server
 	private port: number
 	private io: Server
@@ -31,7 +32,7 @@ class App {
 	}
 	private fixedTimeStep: number
 	private clientInx: number
-	private demo: DemoServer
+	private worldServer: WorldServer
 	private currentScenarioIndex: number
 
 
@@ -55,10 +56,10 @@ class App {
 		this.fixedTimeStep = 1.0 / 60.0; // fps
 		this.clientInx = 0
 		this.currentScenarioIndex = -1
-		this.demo = new DemoServer()
+		this.worldServer = new WorldServer()
 
 		// Loading Scenarios
-		ScenarioImport.loadScenarios(this.demo)
+		ScenarioImport.loadScenarios(this.worldServer)
 
 		// Socket
 		this.io.on("connection", (socket: Socket) => {
@@ -75,11 +76,38 @@ class App {
 		this.clients[socket.id] = new Player()
 		this.clients[socket.id].id = socket.id
 		this.clients[socket.id].data = "" + (++this.clientInx)
+
 		let message = {
 			id: this.clients[socket.id].id,
 			data: this.clients[socket.id].data,
 			scenario: this.currentScenarioIndex
 		}
+
+		{
+			let p = socket.id
+			let scene = this.clients[p].mesh
+			var listMesh: any[] = []
+			scene.children.forEach((child: any) => {
+				if (child.isMesh) {
+					listMesh.push(child)
+				}
+			})
+
+			listMesh.forEach((child: any) => {
+				let body = Utility.getBodyFromMesh(child)
+				if ((body !== undefined) && (child.userData.name !== undefined)) {
+					this.worldServer.addBody(this.worldServer.world, body, p+"_player_"+child.userData.name)
+					body.position.x = child.position.x
+					body.position.y = child.position.y-5
+					body.position.z = child.position.z
+					body.quaternion.x = child.quaternion.x
+					body.quaternion.y = child.quaternion.y
+					body.quaternion.z = child.quaternion.z
+					body.quaternion.w = child.quaternion.w
+				}
+			})
+		}
+
 
 		socket.emit("setid", message, (username: string) => {
 			this.clients[socket.id].userName = username
@@ -91,6 +119,11 @@ class App {
 		console.log("socket disconnected : " + socket.id);
 		if (this.clients && this.clients[socket.id]) {
 			console.log("deleting " + socket.id);
+			Object.keys(this.worldServer.allBodies).forEach((p) => {
+				if(p.includes(socket.id)) {
+					this.worldServer.removeBody(this.worldServer.world, p)
+				}
+			});
 			delete this.clients[socket.id]
 			this.io.emit("removeClient", socket.id)
 		}
@@ -100,7 +133,7 @@ class App {
 	private OnChangeScenario(inx: number) {
 		this.currentScenarioIndex = inx
 		console.log("Scenario Change: " + inx)
-		this.demo.buildScene(inx)
+		this.worldServer.buildScene(inx)
 		this.io.emit("changeScenario", inx)
 	}
 
@@ -108,6 +141,24 @@ class App {
 		this.clients[socket.id].timeStamp = message.timeStamp
 		this.clients[socket.id].ping = message.ping
 		this.clients[socket.id].data = message.data
+
+		{
+			Object.keys(this.worldServer.allBodies).forEach((p) => {
+				if(p.includes(socket.id)) {
+					if(this.clients[socket.id].data.position) {
+						this.worldServer.allBodies[p].position.x = this.clients[socket.id].data.position.x
+						this.worldServer.allBodies[p].position.y = this.clients[socket.id].data.position.y
+						this.worldServer.allBodies[p].position.z = this.clients[socket.id].data.position.z
+					}
+					if(this.clients[socket.id].data.quaternion) {
+						this.worldServer.allBodies[p].quaternion.x = this.clients[socket.id].data.quaternion.x
+						this.worldServer.allBodies[p].quaternion.y = this.clients[socket.id].data.quaternion.y
+						this.worldServer.allBodies[p].quaternion.z = this.clients[socket.id].data.quaternion.z
+						this.worldServer.allBodies[p].quaternion.w = this.clients[socket.id].data.quaternion.w
+					}
+				}
+			});
+		}
 	}
 
 	public Start() {
@@ -120,25 +171,49 @@ class App {
 		let data: {
 			[id: string]: PlayerData
 		} = {}
-		Object.keys(this.demo.allBodies).forEach((p) => {
-			data["world_ent_" + p] = {
-				id: "world_ent_" + p,
-				userName: "server",
-				data: {
-					position: {
-						x: this.demo.allBodies[p].position.x,
-						y: this.demo.allBodies[p].position.y,
-						z: this.demo.allBodies[p].position.z,
+		Object.keys(this.worldServer.allBodies).forEach((p) => {
+			if(!p.includes("_player_")) {
+				data["world_ent_" + p] = {
+					id: "world_ent_" + p,
+					userName: "server",
+					data: {
+						position: {
+							x: this.worldServer.allBodies[p].position.x,
+							y: this.worldServer.allBodies[p].position.y,
+							z: this.worldServer.allBodies[p].position.z,
+						},
+						quaternion: {
+							x: this.worldServer.allBodies[p].quaternion.x,
+							y: this.worldServer.allBodies[p].quaternion.y,
+							z: this.worldServer.allBodies[p].quaternion.z,
+							w: this.worldServer.allBodies[p].quaternion.w,
+						},
 					},
-					quaternion: {
-						x: this.demo.allBodies[p].quaternion.x,
-						y: this.demo.allBodies[p].quaternion.y,
-						z: this.demo.allBodies[p].quaternion.z,
-						w: this.demo.allBodies[p].quaternion.w,
-					},
-				},
-				timeStamp: Date.now(),
-				ping: -1,
+					timeStamp: Date.now(),
+					ping: -1,
+				}
+			} else {
+				if(this.clients[p.split("_player_")[0]].userName) {
+					data[p] = {
+						id: p,
+						userName: this.clients[p.split("_player_")[0]].userName+"_player_"+p.split("_player_")[1],
+						data: {
+							position: {
+								x: this.worldServer.allBodies[p].position.x,
+								y: this.worldServer.allBodies[p].position.y,
+								z: this.worldServer.allBodies[p].position.z,
+							},
+							quaternion: {
+								x: this.worldServer.allBodies[p].quaternion.x,
+								y: this.worldServer.allBodies[p].quaternion.y,
+								z: this.worldServer.allBodies[p].quaternion.z,
+								w: this.worldServer.allBodies[p].quaternion.w,
+							},
+						},
+						timeStamp: Date.now(),
+						ping: -1,
+					}
+				}
 			}
 		})
 		Object.keys(this.clients).forEach((p) => {
@@ -148,4 +223,4 @@ class App {
 	};
 }
 
-new App(port).Start()
+new AppServer(port).Start()

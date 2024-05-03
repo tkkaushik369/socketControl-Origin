@@ -8,13 +8,14 @@ import * as GameModes from './GameModes';
 import { CameraController } from './CameraController';
 import { InputManager } from './InputManager';
 import CannonDebugRenderer from '../../server/ts/utils/cannonDebugRenderer'
+import { WorldObject } from '../../server/ts/WorldObjects/WorldObject'
 import * as Utility from '../../server/ts/Utils/Utility'
 
-export default class DemoClient {
+export default class WorldClient {
 	private appClient: AppClient
 	private parent: HTMLElement
 	public scene: THREE.Scene
-	private world: CANNON.World
+	public world: CANNON.World
 	private cannonDebugRenderer: CannonDebugRenderer | undefined
 	private renderer2D: CSS2DRenderer
 	private renderer: THREE.WebGLRenderer
@@ -35,9 +36,10 @@ export default class DemoClient {
 	public settings: { [id: string]: any }
 	private gui: GUI
 	private scenario: Function[]
-	public allMesh: { [id: string]: THREE.Object3D }
+	public allMeshs: { [id: string]: THREE.Object3D }
 	public allLabels: { [id: string]: CSS2DObject }
 	public allBodies: { [id: string]: CANNON.Body }
+	public allBalls: any[]
 	private scenarioFolder: any
 
 	public changeSceneCallBack: Function | undefined
@@ -54,9 +56,10 @@ export default class DemoClient {
 
 		// Scenario
 		this.scenario = []
-		this.allMesh = {}
+		this.allMeshs = {}
 		this.allLabels = {}
 		this.allBodies = {}
+		this.allBalls = []
 
 		// Scene
 		this.scene = new THREE.Scene()
@@ -112,26 +115,36 @@ export default class DemoClient {
 
 		// Helpers
 		this.helpers = {}
-		this.helpers['axesHelper'] = new THREE.AxesHelper(5);
-		this.scene.add(this.helpers['axesHelper']);
+		
+		this.helpers['axesHelper'] = new THREE.AxesHelper(5)
+		this.scene.add( this.helpers['axesHelper'] )
+
+		this.helpers['gridHelper'] = new THREE.GridHelper( 10, 10 )
+		this.scene.add( this.helpers['gridHelper'] )
+
+		this.helpers['spotLight'] = new THREE.SpotLightHelper( this.spotLight )
+		this.scene.add( this.helpers['spotLight'] )
+
+		this.helpers['directionalLight'] = new THREE.DirectionalLightHelper( this.directionalLight, 1 )
+		this.scene.add( this.helpers['directionalLight'] )
 
 		this.clock = new THREE.Clock();
 		this.renderDelta = 0;
 
 		// Settings
 		this.settings = {
-			Pointer_Lock: true,
-			Mouse_Sensitivity: 0.2,
-			Time_Scale: 1,
-			Debug_Physics: false,
+			PointerLock: true,
+			MouseSensitivity: 0.2,
+			TimeScale: 1,
+			DebugPhysics: false,
 		}
 
 		// Changing time scale with scroll wheel
 		this.timeScaleTarget = 1;
 		this.cameraDistanceTarget = 1.6;
-		this.cameraController = new CameraController(this.camera, this.settings.Mouse_Sensitivity, this.settings.Mouse_Sensitivity * 0.7);
+		this.cameraController = new CameraController(this.camera, this.settings.MouseSensitivity, this.settings.MouseSensitivity * 0.7);
 		this.gameMode = new GameModes.FreeCameraControls(undefined)
-		this.gameMode.demo = this
+		this.gameMode.worldClient = this
 		this.gameMode.init()
 		this.inputManager = new InputManager(this, this.parent);
 
@@ -151,30 +164,31 @@ export default class DemoClient {
 
 		// Input Folder
 		let inputFolder = this.gui.addFolder('Input')
-		inputFolder.add(this.settings, 'Pointer_Lock').onChange(pointLockFunc);
-		inputFolder.add(this.settings, 'Mouse_Sensitivity', 0.01, 0.5, 0.01).onChange(mouseSensitivityFunc).name("Mouse")
+		inputFolder.add(this.settings, 'PointerLock').onChange(pointLockFunc);
+		inputFolder.add(this.settings, 'MouseSensitivity', 0.01, 0.5, 0.01).onChange(mouseSensitivityFunc).name("Mouse")
 		inputFolder.close()
 
 		// Graphics
 		let graphicsFolder = this.gui.addFolder('Rendering');
-		graphicsFolder.add(this.settings, 'Time_Scale', 0, 1).listen().onChange(timeScaleFunc);
+		graphicsFolder.add(this.settings, 'TimeScale', 0, 1).listen().onChange(timeScaleFunc);
 		graphicsFolder.close()
 
 		// Debug
 		let debugFolder = this.gui.addFolder('Debug');
-		debugFolder.add(this.settings, 'Debug_Physics').onChange(debugPhysicsFunc);
+		debugFolder.add(this.settings, 'DebugPhysics').onChange(debugPhysicsFunc);
 		debugFolder.close()
 
 		// Scene Picker Folder
 		this.scenarioFolder = this.gui.addFolder('Scenario')
+		this.scenarioFolder.add({ ["Reset"]: () => this.changeScene(-1, true) }, "Reset")
 		this.scenarioFolder.open()
 
 		{
 			// run all Functions
-			pointLockFunc(this.settings.Pointer_Lock)
-			mouseSensitivityFunc(this.settings.Mouse_Sensitivity)
-			timeScaleFunc(this.settings.Time_Scale)
-			debugPhysicsFunc(this.settings.Debug_Physics)
+			pointLockFunc(this.settings.PointerLock)
+			mouseSensitivityFunc(this.settings.MouseSensitivity)
+			timeScaleFunc(this.settings.TimeScale)
+			debugPhysicsFunc(this.settings.DebugPhysics)
 		}
 
 		// Events
@@ -184,7 +198,7 @@ export default class DemoClient {
 	}
 
 	public setGameMode(gameMode: GameModes.GameModeBase) {
-		gameMode.demo = this;
+		gameMode.worldClient = this;
 		this.gameMode = gameMode;
 		gameMode.init();
 	}
@@ -218,16 +232,16 @@ export default class DemoClient {
 	}
 
 	public addMesh(scene: THREE.Scene, mesh: THREE.Object3D, name: string) {
-		this.allMesh[name] = mesh
-		this.allMesh[name].castShadow = true
-		this.allMesh[name].receiveShadow = true
-		scene.add(this.allMesh[name])
+		this.allMeshs[name] = mesh
+		this.allMeshs[name].castShadow = true
+		this.allMeshs[name].receiveShadow = true
+		scene.add(this.allMeshs[name])
 	}
 
 	public removeMesh(scene: THREE.Scene, name: string) {
-		if (this.allMesh[name] === undefined) return
-		scene.remove(this.allMesh[name])
-		delete this.allMesh[name]
+		if (this.allMeshs[name] === undefined) return
+		scene.remove(this.allMeshs[name])
+		delete this.allMeshs[name]
 	}
 
 	public addLabel(obj: THREE.Object3D, label: CSS2DObject, name: string) {
@@ -237,17 +251,17 @@ export default class DemoClient {
 
 	public removeLabel(name: string) {
 		if (this.allLabels[name] === undefined) return
-		if (this.allMesh[name] === undefined) return
-		this.allMesh[name].remove(this.allLabels[name])
+		if (this.allMeshs[name] === undefined) return
+		this.allMeshs[name].remove(this.allLabels[name])
 		delete this.allLabels[name]
 	}
 
-	private addBody(world: CANNON.World, body: CANNON.Body, name: string) {
+	public addBody(world: CANNON.World, body: CANNON.Body, name: string) {
 		this.allBodies[name] = body
 		world.addBody(body)
 	}
 
-	private removeBody(world: CANNON.World, name: string) {
+	public removeBody(world: CANNON.World, name: string) {
 		if (this.allBodies[name] === undefined) return
 		world.removeBody(this.allBodies[name])
 		delete this.allBodies[name]
@@ -270,39 +284,41 @@ export default class DemoClient {
 		// Remove all visuals
 		this.removeAllVisuals();
 		this.removeAllPhysics();
+		this.allHelper(true)
 
 		if (inx == -1) return
+		this.allHelper(false)
 		// Run the user defined "build scene" function
 		this.scenario[inx]()
 	}
 
 	private removeAllVisuals() {
-		Object.keys(this.allMesh).forEach((p) => {
-			this.removeMesh(this.scene, p)
+		Object.keys(this.allMeshs).forEach((p) => {
+			if(!p.includes("_player_")) this.removeMesh(this.scene, p)
 		});
 	}
 
 	private removeAllPhysics() {
 		Object.keys(this.allBodies).forEach((p) => {
-			this.removeBody(this.world, p)
+			if(!p.includes("_player_")) this.removeBody(this.world, p)
 		});
 	}
 
 	public meshUpdate(id: string, data: any) {
-		const world_ent = "world_ent_"
-		if (id.includes(world_ent)) {
+		const worldEnt = "world_ent_"
+		if (id.includes(worldEnt)) {
 			const tid = id
-			let p = tid.replace(world_ent, "")
+			let p = tid.replace(worldEnt, "")
 
-			if (this.allMesh[p] !== undefined) {
-				this.allMesh[p].position.x = data.position.x
-				this.allMesh[p].position.y = data.position.y
-				this.allMesh[p].position.z = data.position.z
+			if (this.allMeshs[p] !== undefined) {
+				this.allMeshs[p].position.x = data.position.x
+				this.allMeshs[p].position.y = data.position.y
+				this.allMeshs[p].position.z = data.position.z
 
-				this.allMesh[p].quaternion.x = data.quaternion.x
-				this.allMesh[p].quaternion.y = data.quaternion.y
-				this.allMesh[p].quaternion.z = data.quaternion.z
-				this.allMesh[p].quaternion.w = data.quaternion.w
+				this.allMeshs[p].quaternion.x = data.quaternion.x
+				this.allMeshs[p].quaternion.y = data.quaternion.y
+				this.allMeshs[p].quaternion.z = data.quaternion.z
+				this.allMeshs[p].quaternion.w = data.quaternion.w
 			}
 
 			if (this.allBodies[p] !== undefined) {
@@ -316,30 +332,58 @@ export default class DemoClient {
 				this.allBodies[p].quaternion.w = data.quaternion.w
 			}
 		} else {
-			if (this.allMesh[id] !== undefined) {
-				if (data.position != undefined) {
-					this.allMesh[id].position.x = data.position.x
-					this.allMesh[id].position.y = data.position.y
-					this.allMesh[id].position.z = data.position.z
+			if (this.allMeshs[id] !== undefined) {
+				if (data.position !== undefined) {
+					this.allMeshs[id].position.x = data.position.x
+					this.allMeshs[id].position.y = data.position.y
+					this.allMeshs[id].position.z = data.position.z
 				}
 
-				if (data.quaternion != undefined) {
-					this.allMesh[id].quaternion.x = data.quaternion.x
-					this.allMesh[id].quaternion.y = data.quaternion.y
-					this.allMesh[id].quaternion.z = data.quaternion.z
-					this.allMesh[id].quaternion.w = data.quaternion.w
+				if (data.quaternion !== undefined) {
+					this.allMeshs[id].quaternion.x = data.quaternion.x
+					this.allMeshs[id].quaternion.y = data.quaternion.y
+					this.allMeshs[id].quaternion.z = data.quaternion.z
+					this.allMeshs[id].quaternion.w = data.quaternion.w
 				}
 			}
+			Object.keys(this.allBodies).forEach((p) => {
+				if(p.includes(id) && id.includes("_player_")) {
+					if (data.position !== undefined) {
+						this.allBodies[p].position.x = data.position.x
+						this.allBodies[p].position.y = data.position.y
+						this.allBodies[p].position.z = data.position.z
+					}
+					if (data.quaternion !== undefined) {
+						this.allBodies[p].quaternion.x = data.quaternion.x
+						this.allBodies[p].quaternion.y = data.quaternion.y
+						this.allBodies[p].quaternion.z = data.quaternion.z
+						this.allBodies[p].quaternion.w = data.quaternion.w
+					}
+				}
+			});
 		}
 	}
 
-	animate() {
+	private allHelper(show: boolean) {
+		Object.keys(this.helpers).forEach((p) => {
+			this.helpers[p].visible = show
+		})
+	}
+
+	private animate() {
 		requestAnimationFrame(this.animate);
 
 		// Measuring render time
 		this.renderDelta = this.clock.getDelta();
 
 		this.gameMode.update();
+
+		{
+			this.world.step(this.renderDelta)
+			this.allBalls.forEach((p) => {
+				p.update(0)
+			})
+		}
 
 		// Lerp parameters
 		this.cameraController.radius = THREE.MathUtils.lerp(this.cameraController.radius, this.cameraDistanceTarget, 0.1);
@@ -349,7 +393,7 @@ export default class DemoClient {
 		if (this.animateCallBack !== undefined) this.animateCallBack()
 
 		// Update cannonDebugRenderer
-		if (this.settings.Debug_Physics && (this.cannonDebugRenderer !== undefined)) this.cannonDebugRenderer.update()
+		if (this.settings.DebugPhysics && (this.cannonDebugRenderer !== undefined)) this.cannonDebugRenderer.update()
 
 		this.renderer.render(this.scene, this.camera)
 		this.renderer2D.render(this.scene, this.camera)

@@ -1,8 +1,8 @@
-import DemoClient from "./DemoClient"
+import WorldClient from "./WorldClient"
 
 export class InputManager {
 
-	public demo: DemoClient
+	public worldClient: WorldClient
 	public domElement: HTMLElement
 	public pointerLock: boolean
 	public isLocked: boolean
@@ -18,10 +18,10 @@ export class InputManager {
 	public boundOnKeyDown: any
 	public boundOnKeyUp: any
 
-	constructor(demo: DemoClient, domElement: HTMLElement) {
-		this.demo = demo
+	constructor(worldClient: WorldClient, domElement: HTMLElement) {
+		this.worldClient = worldClient
 		this.domElement = domElement
-		this.pointerLock = this.demo.settings.Pointer_Lock
+		this.pointerLock = this.worldClient.settings.PointerLock
 		this.isLocked = false;
 
 		// Bindings for later event use
@@ -81,14 +81,14 @@ export class InputManager {
 			this.domElement.addEventListener("mouseup", this.boundOnMouseUp, false);
 		}
 
-		if (this.demo.gameMode !== undefined) {
-			this.demo.gameMode.handleAction(event, 'mouse' + event.button, true);
+		if (this.worldClient.gameMode !== undefined) {
+			this.worldClient.gameMode.handleAction(event, 'mouse' + event.button, true);
 		}
 	}
 
 	public onMouseMove(event: MouseEvent) {
-		if (this.demo.gameMode !== undefined) {
-			this.demo.gameMode.handleMouseMove(event, event.movementX, event.movementY);
+		if (this.worldClient.gameMode !== undefined) {
+			this.worldClient.gameMode.handleMouseMove(event, event.movementX, event.movementY);
 		}
 	}
 
@@ -98,26 +98,26 @@ export class InputManager {
 			this.domElement.removeEventListener("mouseup", this.boundOnMouseUp, false);
 		}
 
-		if (this.demo.gameMode !== undefined) {
-			this.demo.gameMode.handleAction(event, 'mouse' + event.button, false);
+		if (this.worldClient.gameMode !== undefined) {
+			this.worldClient.gameMode.handleAction(event, 'mouse' + event.button, false);
 		}
 	}
 
 	public onKeyDown(event: KeyboardEvent) {
-		if (this.demo.gameMode !== undefined) {
-			this.demo.gameMode.handleAction(event, event.key, true);
+		if (this.worldClient.gameMode !== undefined) {
+			this.worldClient.gameMode.handleAction(event, event.key, true);
 		}
 	}
 
 	public onKeyUp(event: KeyboardEvent) {
-		if (this.demo.gameMode !== undefined) {
-			this.demo.gameMode.handleAction(event, event.key, false);
+		if (this.worldClient.gameMode !== undefined) {
+			this.worldClient.gameMode.handleAction(event, event.key, false);
 		}
 	}
 
 	public onMouseWheelMove(event: WheelEvent) {
-		if (this.demo.gameMode !== undefined) {
-			this.demo.gameMode.handleScroll(event, event.deltaY);
+		if (this.worldClient.gameMode !== undefined) {
+			this.worldClient.gameMode.handleScroll(event, event.deltaY);
 		}
 	}
 }

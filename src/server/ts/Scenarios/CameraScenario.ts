@@ -6,9 +6,11 @@ export const CameraScenario = (): THREE.Scene => {
 
 	const camera = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.5, 0.9), new THREE.MeshStandardMaterial({ color: Number(Utility.getRandomMutedColor("0x")) }))
 	camera.userData["visible"] = "true"
+	camera.userData["physics"] = "box"
 	camera.userData["name"] = "camera"
-	camera.position.z = (0.9 / 2) + 0.25
-	camera.position.y = -0.1
+	camera.userData["mass"] = "0"
+	// camera.position.z = (0.9 / 2) + 0.25
+	// camera.position.y = -0.1
 	scene.add(camera)
 
 	const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.25, 0.25, 4), new THREE.MeshStandardMaterial({ color: Number(Utility.getRandomMutedColor("0x")) }))
@@ -35,6 +37,9 @@ export const CameraScenario = (): THREE.Scene => {
 	reelOut.position.z = -0.2
 	reelOut.rotation.z = Math.PI / 2
 	camera.add(reelOut)
+
+	scene.position.z = (0.9 / 2) + 0.25
+	scene.position.y = -0.1
 
 	return scene
 }

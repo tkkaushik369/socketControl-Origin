@@ -2,9 +2,10 @@ import "./css/main.css"
 import * as THREE from 'three'
 import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer'
 import { io } from "socket.io-client"
-import { PlayerData, Player } from "../server/ts/messageData"
-import DemoClient from "./ts/DemoClient"
+import { PlayerData, Player } from "../server/ts/PlayerData"
+import WorldClient from "./ts/WorldClient"
 import * as ScenarioImport from '../server/ts/Scenarios/ScenarioImport'
+import * as Utility from '../server/ts/Utils/Utility'
 
 if (navigator.userAgent.includes("QtWebEngine")) {
 	document.body.classList.add("bodyTransparent");
@@ -22,7 +23,7 @@ export default class AppClient {
 		[id: string]: Player
 	}
 	private fixedTimeStep: number
-	private demo: DemoClient
+	private worldClient: WorldClient
 
 	constructor() {
 		// Bind Functions
@@ -40,19 +41,19 @@ export default class AppClient {
 		this.clients = {}
 		this.fixedTimeStep = 1.0 / 60.0; // fps
 		this.player = new Player()
-		this.demo = new DemoClient(this, workBox)
-		this.demo.changeSceneCallBack = this.changeScenario
-		this.demo.animateCallBack = this.animateUpdate
+		this.worldClient = new WorldClient(this, workBox)
+		this.worldClient.changeSceneCallBack = this.changeScenario
+		this.worldClient.animateCallBack = this.animateUpdate
 
 		// Setup camera
-		this.demo.cameraController.theta = 36;
-		this.demo.cameraController.phi = 36;
-		this.demo.cameraController.target.x = 10 - 8;
-		this.demo.cameraController.target.z = 30 - 24;
-		this.demo.cameraController.target.y = 10 - 8;
+		this.worldClient.cameraController.theta = 36;
+		this.worldClient.cameraController.phi = 36;
+		this.worldClient.cameraController.target.x = 10 - 8;
+		this.worldClient.cameraController.target.z = 30 - 24;
+		this.worldClient.cameraController.target.y = 10 - 8;
 
 		// Loading Scenarios
-		ScenarioImport.loadScenarios(this.demo)
+		ScenarioImport.loadScenarios(this.worldClient)
 
 		// Socket
 		this.socket.on("connect", this.OnConnect);
@@ -74,8 +75,21 @@ export default class AppClient {
 	private OnRemoveClient(id: string) {
 		console.log("removeClient: ", id);
 		if (this.clients[id] !== undefined) {
-			this.demo.removeLabel(id)
-			this.demo.removeMesh(this.demo.scene, id)
+			Object.keys(this.worldClient.allLabels).forEach((p) => {
+				if(p.includes(id)) {
+					this.worldClient.removeLabel(p)
+				}
+			});
+			Object.keys(this.worldClient.allMeshs).forEach((p) => {
+				if(p.includes(id)) {
+					this.worldClient.removeMesh(this.worldClient.scene, p)
+				}
+			});
+			Object.keys(this.worldClient.allBodies).forEach((p) => {
+				if(p.includes(id)) {
+					this.worldClient.removeBody(this.worldClient.world, p)
+				}
+			});
 			delete this.clients[id];
 		}
 	}
@@ -86,19 +100,19 @@ export default class AppClient {
 
 		this.socket.emit("create", this.player.userName);
 		console.log("Username: " + this.player.userName)
-		this.demo.changeScene(message.scenario, false)
+		this.worldClient.changeScene(message.scenario, false)
 		callBack(this.player.userName)
 		setInterval(this.socketLoop, this.fixedTimeStep * 1000)
 	}
 
 	private OnChangeScenario(inx: number) {
-		this.demo.changeScene(inx, false)
+		this.worldClient.changeScene(inx, false)
 	}
 
 	private OnPlayers(players: { [is: string]: PlayerData }) {
 		pingStats.innerHTML = "";
 		Object.keys(players).forEach((p) => {
-			if (!p.includes("world_ent_")) {
+			if (!p.includes("world_ent_") && !p.includes("_player_")) {
 				pingStats.innerHTML += (players[p].userName != "server") ? players[p].userName : players[p].id
 				pingStats.innerHTML += ": "
 				pingStats.innerHTML += (players[p].userName != "server") ? players[p].ping : (Date.now() - players[p].timeStamp)
@@ -111,14 +125,79 @@ export default class AppClient {
 				this.clients[p] = new Player()
 			}
 			if (this.clients[p] !== undefined) {
-				if ((!p.includes("world_ent_")) && (this.demo.allMesh[p] === undefined)) {
-					this.demo.addMesh(this.demo.scene, this.clients[p].mesh, p)
-					this.demo.addLabel(this.clients[p].mesh, this.makeLabel(players[p].userName), p)
+				if ((p.includes("_player_")) && (this.worldClient.allMeshs[p] === undefined)) {
+					let mesh = this.clients[p].mesh
+					let label = this.makeLabel(players[p].userName)
+  					const sprite = this.makeTextSprite(players[p].userName)
+  					mesh.add(sprite)
+					this.worldClient.addMesh(this.worldClient.scene, mesh, p)
+					this.worldClient.addLabel(this.clients[p].mesh, label, p)
+					if(p.includes(this.player.id)) {
+						mesh.visible = false
+						label.visible = false
+					}
+					{
+						let scene = this.clients[p].mesh
+						var listMesh: any[] = []
+						scene.children.forEach((child: any) => {
+							if (child.isMesh) {
+								listMesh.push(child)
+							}
+						})
+
+						listMesh.forEach((child: any) => {
+							let body = Utility.getBodyFromMesh(child)
+							if ((body !== undefined) && (child.userData.name !== undefined)) {
+								this.worldClient.addBody(this.worldClient.world, body, p+"_player_"+child.userData.name)
+								body.position.x = child.position.x
+								body.position.y = child.position.y
+								body.position.z = child.position.z
+								body.quaternion.x = child.quaternion.x
+								body.quaternion.y = child.quaternion.y
+								body.quaternion.z = child.quaternion.z
+								body.quaternion.w = child.quaternion.w
+							}
+						})
+					}
 				}
 			}
-			this.demo.meshUpdate(p, players[p].data)
+			this.worldClient.meshUpdate(p, players[p].data)
 		})
 	}
+
+	makeTextSprite( message: string, parameters: { [id: string]: any } = {} ) {
+		if ( parameters === undefined ) parameters = {};
+		var fontface = parameters.hasOwnProperty("fontface") ? parameters["fontface"] : "Arial";
+		var fontsize = parameters.hasOwnProperty("fontsize") ? parameters["fontsize"] : 18;
+		var borderThickness = parameters.hasOwnProperty("borderThickness") ? parameters["borderThickness"] : 4;
+		var borderColor = parameters.hasOwnProperty("borderColor") ?parameters["borderColor"] : { r:0, g:0, b:0, a:1.0 };
+		var backgroundColor = parameters.hasOwnProperty("backgroundColor") ?parameters["backgroundColor"] : { r:255, g:255, b:255, a:1.0 };
+		var textColor = parameters.hasOwnProperty("textColor") ?parameters["textColor"] : { r:0, g:0, b:0, a:1.0 };
+
+		var canvas: HTMLCanvasElement = document.createElement('canvas');
+		var context:any = canvas.getContext('2d');
+		context.font = "Bold " + fontsize + "px " + fontface;
+		var metrics = context.measureText( message );
+		var textWidth = metrics.width;
+
+		context.fillStyle   = "rgba(" + backgroundColor.r + "," + backgroundColor.g + "," + backgroundColor.b + "," + backgroundColor.a + ")";
+		context.strokeStyle = "rgba(" + borderColor.r + "," + borderColor.g + "," + borderColor.b + "," + borderColor.a + ")";
+
+		context.lineWidth = borderThickness;
+		context.rect(borderThickness/2, borderThickness/2, (textWidth + borderThickness) * 1.1, fontsize * 1.4 + borderThickness);
+
+
+		context.fillStyle = "rgba("+textColor.r+", "+textColor.g+", "+textColor.b+", 1.0)";
+		context.fillText( message, borderThickness, fontsize + borderThickness);
+
+		var texture = new THREE.Texture(canvas) 
+		texture.needsUpdate = true;
+
+		var spriteMaterial = new THREE.SpriteMaterial( { map: texture, /*useScreenCoordinates: false*/ } );
+		var sprite = new THREE.Sprite( spriteMaterial );
+		sprite.scale.set(0.5 * fontsize, 0.25 * fontsize, 0.75 * fontsize);
+		return sprite;  
+    }
 
 	private makeLabel(name: string) {
 		let labelDiv = document.createElement('div')
@@ -127,22 +206,21 @@ export default class AppClient {
 		let label = new CSS2DObject(labelDiv)
 		label.position.set(0, 1, 0.5)
 		label.layers.set(0)
-		console.log("lab")
 		return label
 	}
 
 	private animateUpdate() {
 		this.player.data = {
 			position: {
-				x: this.demo.camera.position.x,
-				y: this.demo.camera.position.y,
-				z: this.demo.camera.position.z,
+				x: this.worldClient.camera.position.x,
+				y: this.worldClient.camera.position.y,
+				z: this.worldClient.camera.position.z,
 			},
 			quaternion: {
-				x: this.demo.camera.quaternion.x,
-				y: this.demo.camera.quaternion.y,
-				z: this.demo.camera.quaternion.z,
-				w: this.demo.camera.quaternion.w,
+				x: this.worldClient.camera.quaternion.x,
+				y: this.worldClient.camera.quaternion.y,
+				z: this.worldClient.camera.quaternion.z,
+				w: this.worldClient.camera.quaternion.w,
 			},
 		}
 	}

@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import * as CANNON from 'cannon-es'
 import * as Utility from "./Utils/Utility"
 
-export default class DemoServer {
+export default class WorldServer {
 	public world: CANNON.World
 
 	private settings: { [id: string]: any }
@@ -57,12 +57,12 @@ export default class DemoServer {
 		})
 	}
 
-	private addBody(world: CANNON.World, body: CANNON.Body, name: string) {
+	public addBody(world: CANNON.World, body: CANNON.Body, name: string) {
 		this.allBodies[name] = body
 		world.addBody(body)
 	}
 
-	private removeBody(world: CANNON.World, name: string) {
+	public removeBody(world: CANNON.World, name: string) {
 		if (this.allBodies[name] === undefined) return
 		world.removeBody(this.allBodies[name])
 		delete this.allBodies[name]
@@ -83,7 +83,7 @@ export default class DemoServer {
 
 	private removeAllPhysics() {
 		Object.keys(this.allBodies).forEach((p) => {
-			this.removeBody(this.world, p)
+			if(!p.includes("_player_")) this.removeBody(this.world, p)
 		});
 	}
 
